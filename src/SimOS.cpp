@@ -102,3 +102,63 @@ void SimOS::SimExit()
         readyQueue_.pop_front();
     }
 }
+
+/**
+ * @post : The process wants to pause and wait for any of its child processes to terminate.
+ *         Once the wait is over, the process goes to the end of the ready-queue or the CPU.
+ *         If the zombie-child already exists, the process proceeds right away (keeps using the CPU) and the zombie-child disappears.
+ *         If more than one zombie-child exists, the system uses one of them (any!) to immediately resume the parent, while other zombies keep waiting for the next wait from the parent.
+ */
+void SimOS::SimWait()
+{
+    if (runningProcess_ == NO_PROCESS)
+    {
+        throw std::logic_error("No process currently using the CPU.");
+    }
+
+    Process &process = processes_[runningProcess_];
+
+    bool resume = false;
+    for (auto it = process.childrenPIDs.begin(); it != process.childrenPIDs.end(); ++it)
+    {
+        if (processes_[*it].isZombie)
+        {
+            process.childrenPIDs.erase(it);
+            processes_.erase(*it);
+            resume = true;
+            break;
+        }
+    }
+
+    if (!resume)
+    {
+        process.isWaiting = true;
+
+        // start new process
+        if (!readyQueue_.empty())
+        {
+            runningProcess_ = readyQueue_.front();
+            readyQueue_.pop_front();
+        }
+    }
+}
+
+/**
+ * @post : Interrupt arrives from the timer signaling that the time slice of the currently running process is over.
+ */
+void SimOS::TimerInterrupt()
+{
+    if (runningProcess_ == NO_PROCESS)
+    {
+        throw std::logic_error("No process currently using the CPU.");
+    }
+
+    if (!readyQueue_.empty())
+    {
+        readyQueue_.push_back(runningProcess_); // put process to back of ready queue
+
+        // start new process
+        runningProcess_ = readyQueue_.front();
+        readyQueue_.pop_front();
+    }
+}
