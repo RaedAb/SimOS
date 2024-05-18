@@ -11,6 +11,9 @@ struct FileReadRequest
 {
     int PID{0};
     std::string fileName{""};
+
+    FileReadRequest();
+    FileReadRequest(int pid, std::string file = "") : PID(pid), fileName(file) {}
 };
 
 struct MemoryItem
@@ -43,68 +46,72 @@ private:
 
 public:
     /**
+     * Creates a SimOS Object.
+     * 
      * @param numberOfDisks : number of hard disks in the simulated computer.
      * @param amountOfRAM : amount of memory
      * @param pageSize : page size
-     * @post : Creates a SimOS Object.
      */
     SimOS(int numberOfDisks, unsigned long long amountOfRAM, unsigned int pageSize);
 
     /**
-     * @post : Creates a new process and adds it to the ready queue. Every process in the simulated system has a PID.
-     *         The sim assigns PIDs to new processes starting from 1 and increments it by one for each new process.
-     *         PIDs are never recycled
+     * Creates a new process and adds it to the ready queue. Every process in the simulated system has a PID.
+     * The sim assigns PIDs to new processes starting from 1 and increments it by one for each new process.
+     * PIDs are never recycled
      */
     void NewProcess();
 
     /**
-     * @post : The currently running process forks a child. The child is placed in the end of the ready-queue.
+     * The currently running process forks a child. The child is placed in the end of the ready-queue.
      */
     void SimFork();
 
     /**
-     * @post : The process that is currently using the CPU terminates.
-     *         Make sure you release the memory used by this process immediately.
-     *         If its parent is already waiting, the process terminates immediately and the parent becomes runnable (goes to the ready-queue).
-     *         If its parent hasn't called wait yet, the process turns into zombie.
-     *         To avoid the appearance of orphans, the system implements cascading termination.
-     *         Cascading termination means that if a process terminates, all its descendants terminate with it.
+     * The process that is currently using the CPU terminates.
+     * Make sure you release the memory used by this process immediately.
+     * If its parent is already waiting, the process terminates immediately and the parent becomes runnable (goes to the ready-queue).
+     * If its parent hasn't called wait yet, the process turns into zombie.
+     * To avoid the appearance of orphans, the system implements cascading termination.
+     * Cascading termination means that if a process terminates, all its descendants terminate with it.
      */
     void SimExit();
 
     /**
-     * @post : The process wants to pause and wait for any of its child processes to terminate.
-     *         Once the wait is over, the process goes to the end of the ready-queue or the CPU.
-     *         If the zombie-child already exists, the process proceeds right away (keeps using the CPU) and the zombie-child disappears.
-     *         If more than one zombie-child exists, the system uses one of them (any!) to immediately resume the parent, while other zombies keep waiting for the next wait from the parent.
+     * The process wants to pause and wait for any of its child processes to terminate.
+     * Once the wait is over, the process goes to the end of the ready-queue or the CPU.
+     * If the zombie-child already exists, the process proceeds right away (keeps using the CPU) and the zombie-child disappears.
+     * If more than one zombie-child exists, the system uses one of them (any!) to immediately resume the parent, while other zombies keep waiting for the next wait from the parent.
      */
     void SimWait();
 
     /**
-     * @post : Interrupt arrives from the timer signaling that the time slice of the currently running process is over.
+     * Interrupt arrives from the timer signaling that the time slice of the currently running process is over.
      */
     void TimerInterrupt();
 
     /**
+     * Currently running process requests to read the specified file from the disk with a given number.
+     * The process issuing disk reading requests immediately stops using the CPU, even if the ready-queue is empty.
+     * 
      * @param diskNumber : the number of the disk to read from.
      * @param fileName : the name of the file to read.
-     * @post : Currently running process requests to read the specified file from the disk with a given number.
-     *         The process issuing disk reading requests immediately stops using the CPU, even if the ready-queue is empty.
      */
     void DiskReadRequest(int diskNumber, std::string fileName);
 
     /**
+     * A disk with a specified number reports that a single job is completed.
+     * The served process should return to the ready-queue.
+     * 
      * @param diskNumber : the number of the disk that completed a job.
-     * @post : A disk with a specified number reports that a single job is completed.
-     *         The served process should return to the ready-queue.
      */
     void DiskJobCompleted(int diskNumber);
 
     /**
+     * Currently running process wants to access the specified logical memory address.
+     * System makes sure the corresponding page is loaded in the RAM.
+     * If the corresponding page is already in the RAM, its “recently used” information is updated.
+     * 
      * @param address : the logical memory address to access.
-     * @post : Currently running process wants to access the specified logical memory address.
-     *         System makes sure the corresponding page is loaded in the RAM.
-     *         If the corresponding page is already in the RAM, its “recently used” information is updated.
      */
     void AccessMemoryAddress(unsigned long long address);
 
