@@ -162,3 +162,90 @@ void SimOS::TimerInterrupt()
         readyQueue_.pop_front();
     }
 }
+
+/**
+ * @param diskNumber : the number of the disk to read from.
+ * @param fileName : the name of the file to read.
+ * @post : Currently running process requests to read the specified file from the disk with a given number.
+ *         The process issuing disk reading requests immediately stops using the CPU, even if the ready-queue is empty.
+ */
+void SimOS::DiskReadRequest(int diskNumber, std::string fileName)
+{
+}
+
+/**
+ * @param diskNumber : the number of the disk that completed a job.
+ * @post : A disk with a specified number reports that a single job is completed.
+ *         The served process should return to the ready-queue.
+ */
+void SimOS::DiskJobCompleted(int diskNumber)
+{
+}
+
+/**
+ * @param address : the logical memory address to access.
+ * @post : Currently running process wants to access the specified logical memory address.
+ *         System makes sure the corresponding page is loaded in the RAM.
+ *         If the corresponding page is already in the RAM, its “recently used” information is updated.
+ */
+void SimOS::AccessMemoryAddress(unsigned long long address)
+{
+}
+
+/**
+ * @return : GetCPU returns the PID of the process currently using the CPU.
+ *           If CPU is idle it returns NO_PROCESS.
+ */
+int SimOS::GetCPU()
+{
+    return runningProcess_;
+}
+
+/**
+ * @return : GetReadyQueue returns the std::deque with PIDs of processes in the ready-queue where element in front corresponds start of the ready-queue.
+ */
+std::deque<int> SimOS::GetReadyQueue()
+{
+    return readyQueue_;
+}
+
+/**
+ * @return : GetMemory returns MemoryUsage vector describing all currently used frames of RAM.
+ *           Terminated “zombie” processes don’t use memory, so they don’t contribute to memory usage.
+ *           MemoryItems appear in the MemoryUsage vector in the order they appear in memory (from low addresses to high).
+ */
+MemoryUsage SimOS::GetMemory()
+{
+    return memory_;
+}
+
+/**
+ * @param diskNumber : the number of the disk to query.
+ * @return : GetDisk returns an object with PID of the process served by specified disk and the name of the file read for that process.
+ *           If the disk is idle, GetDisk returns the default FileReadRequest object (with PID 0 and empty string in fileName).
+ */
+FileReadRequest SimOS::GetDisk(int diskNumber)
+{
+    FileReadRequest dummy;
+    return dummy;
+}
+
+/**
+ * @param diskNumber : the number of the disk to query.
+ * @return : GetDiskQueue returns the I/O-queue of the specified disk starting from the “next to be served” process.
+ */
+std::deque<FileReadRequest> SimOS::GetDiskQueue(int diskNumber)
+{
+    return diskQueues_[0];
+}
+
+/**
+ * Helper Functions
+ */
+void SimOS::releaseMemory(int pid)
+{
+}
+
+void SimOS::cascadingTerminate(int pid)
+{
+}
