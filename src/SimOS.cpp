@@ -77,14 +77,16 @@ void SimOS::SimExit()
     Process &process = processes_[pid];
     Process &parent = processes_[process.parentPID];
 
-    // release memory and end  child processes
+    // release memory and end child processes
     releaseMemory(pid);
     cascadingTerminate(pid);
 
     // check if parent waiting
     if (parent.isWaiting)
     {
+        // remove process from processes and from parents children vector
         processes_.erase(process.PID);
+        parent.childrenPIDs.erase(std::remove(parent.childrenPIDs.begin(), parent.childrenPIDs.end(), pid), parent.childrenPIDs.end());
 
         // parent put in ready queue
         parent.isWaiting = false;
@@ -171,6 +173,26 @@ void SimOS::TimerInterrupt()
  */
 void SimOS::DiskReadRequest(int diskNumber, std::string fileName)
 {
+    if (runningProcess_ == NO_PROCESS)
+    {
+        throw std::logic_error("No process currently using the CPU.");
+    }
+
+    // create request
+    FileReadRequest request(runningProcess_, fileName);
+
+    diskQueues_[diskNumber].push_back(request);
+
+    // stop process, start new if available
+    if (!readyQueue_.empty())
+    {
+        runningProcess_ = readyQueue_.front();
+        readyQueue_.pop_front();
+    } else
+    {
+        runningProcess_ = NO_PROCESS;
+    }
+
 }
 
 /**
@@ -180,6 +202,19 @@ void SimOS::DiskReadRequest(int diskNumber, std::string fileName)
  */
 void SimOS::DiskJobCompleted(int diskNumber)
 {
+    // complete job
+    int servedProcess = diskQueues_[diskNumber].front().PID;
+    diskQueues_[diskNumber].pop_front();
+
+    // return to ready queue
+    if (runningProcess_ == NO_PROCESS)
+    {
+        runningProcess_ = servedProcess;
+    } else
+    {
+        readyQueue_.push_back(servedProcess);
+    }
+
 }
 
 /**
@@ -226,8 +261,16 @@ MemoryUsage SimOS::GetMemory()
  */
 FileReadRequest SimOS::GetDisk(int diskNumber)
 {
-    FileReadRequest dummy;
-    return dummy;
+    FileReadRequest idle(0, "");
+    
+    if (diskQueues_[diskNumber].size() != 0)
+    {
+        return diskQueues_[diskNumber].front();
+    }
+    else
+    {
+        return idle;
+    }
 }
 
 /**
@@ -248,4 +291,12 @@ void SimOS::releaseMemory(int pid)
 
 void SimOS::cascadingTerminate(int pid)
 {
+    Process &process = processes_[pid];
+
+    // Recursively terminate all children of the current process
+    for (int childPID : process.childrenPIDs)
+    {
+        cascadingTerminate(childPID);
+        processes_.erase(childPID);
+    }
 }
