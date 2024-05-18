@@ -25,9 +25,10 @@ struct Process
     int parentPID;
     std::vector<int> childrenPIDs;
     bool isZombie;
+    bool isWaiting;
 
     Process(int pid, int parentPid = -1)
-        : PID(pid), parentPID(parentPid), isZombie(false) {}
+        : PID(pid), parentPID(parentPid), isZombie(0), isWaiting(0) {}
 };
 
 using MemoryUsage = std::vector<MemoryItem>;
