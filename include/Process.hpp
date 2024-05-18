@@ -11,6 +11,9 @@ struct Process
     bool isZombie;
     bool isWaiting;
 
+    // Default constructor
+    Process() : PID(-1), parentPID(-1), isZombie(false), isWaiting(false) {}
+
     Process(int pid, int parentPid = -1)
         : PID(pid), parentPID(parentPid), isZombie(0), isWaiting(0) {}
 };
