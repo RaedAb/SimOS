@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "Process.hpp"
 
 struct FileReadRequest
 {
@@ -17,18 +18,6 @@ struct MemoryItem
     unsigned long long pageNumber;
     unsigned long long frameNumber;
     int PID; // PID of the process using this frame of memory
-};
-
-struct Process
-{
-    int PID;
-    int parentPID;
-    std::vector<int> childrenPIDs;
-    bool isZombie;
-    bool isWaiting;
-
-    Process(int pid, int parentPid = -1)
-        : PID(pid), parentPID(parentPid), isZombie(0), isWaiting(0) {}
 };
 
 using MemoryUsage = std::vector<MemoryItem>;
