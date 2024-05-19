@@ -1,4 +1,6 @@
 #include "../include/SimOS.h"
+#include <unordered_set>
+#include <iostream>
 
 /**
  * @param numberOfDisks : number of hard disks in the simulated computer.
@@ -7,8 +9,12 @@
  * @post : Creates a SimOS Object.
  */
 SimOS::SimOS(int numberOfDisks, unsigned long long amountOfRAM, unsigned int pageSize)
-    : numberOfDisks_(numberOfDisks), amountOfRAM_(amountOfRAM), pageSize_(pageSize), nextPID_(1), runningProcess_(NO_PROCESS)
 {
+    // initialize disks
+    for (int i = 0; i < numberOfDisks; i++)
+    {
+        diskQueues_[i] = std::deque<FileReadRequest>();
+    }
 }
 
 /**
@@ -24,7 +30,6 @@ void SimOS::NewProcess()
     processes_[newProcess.PID] = newProcess;
     nextPID_++;
 
-    readyQueue_.push_back(nextPID_);
     if (runningProcess_ == NO_PROCESS) // start process if CPU idle
     {
         runningProcess_ = newProcess.PID;
@@ -75,26 +80,38 @@ void SimOS::SimExit()
     runningProcess_ = NO_PROCESS;
 
     Process &process = processes_[pid];
-    Process &parent = processes_[process.parentPID];
 
     // release memory and end child processes
     releaseMemory(pid);
-    cascadingTerminate(pid);
-
-    // check if parent waiting
-    if (parent.isWaiting)
+    if (process.childrenPIDs.size() > 0)
     {
-        // remove process from processes and from parents children vector
-        processes_.erase(process.PID);
-        parent.childrenPIDs.erase(std::remove(parent.childrenPIDs.begin(), parent.childrenPIDs.end(), pid), parent.childrenPIDs.end());
+        cascadingTerminate(pid);
+    }
 
-        // parent put in ready queue
-        parent.isWaiting = false;
-        readyQueue_.push_back(parent.PID);
+    // check if has parents
+    if (process.parentPID != -1)
+    {
+        Process &parent = processes_[process.parentPID];
+
+        if (parent.isWaiting) // check if parent is waiting
+        {
+            // remove process from processes and from parents children vector
+            processes_.erase(process.PID);
+            parent.childrenPIDs.erase(std::remove(parent.childrenPIDs.begin(), parent.childrenPIDs.end(), pid), parent.childrenPIDs.end());
+
+            // parent put in ready queue
+            parent.isWaiting = false;
+            readyQueue_.push_back(parent.PID);
+        }
+        else
+        {
+            process.isZombie = true;
+        }
     }
     else
     {
-        process.isZombie = true;
+        // remove process, has no parent
+        processes_.erase(process.PID);
     }
 
     // start new process
@@ -177,6 +194,10 @@ void SimOS::DiskReadRequest(int diskNumber, std::string fileName)
     {
         throw std::logic_error("No process currently using the CPU.");
     }
+    if (diskNumber > diskQueues_.size() - 1)
+    {
+        throw std::logic_error("Requested disk out of range.");
+    }
 
     // create request
     FileReadRequest request(runningProcess_, fileName);
@@ -188,11 +209,11 @@ void SimOS::DiskReadRequest(int diskNumber, std::string fileName)
     {
         runningProcess_ = readyQueue_.front();
         readyQueue_.pop_front();
-    } else
+    }
+    else
     {
         runningProcess_ = NO_PROCESS;
     }
-
 }
 
 /**
@@ -202,6 +223,11 @@ void SimOS::DiskReadRequest(int diskNumber, std::string fileName)
  */
 void SimOS::DiskJobCompleted(int diskNumber)
 {
+    if (diskNumber > diskQueues_.size() - 1)
+    {
+        throw std::logic_error("Requested disk out of range.");
+    }
+
     // complete job
     int servedProcess = diskQueues_[diskNumber].front().PID;
     diskQueues_[diskNumber].pop_front();
@@ -210,11 +236,11 @@ void SimOS::DiskJobCompleted(int diskNumber)
     if (runningProcess_ == NO_PROCESS)
     {
         runningProcess_ = servedProcess;
-    } else
+    }
+    else
     {
         readyQueue_.push_back(servedProcess);
     }
-
 }
 
 /**
@@ -261,11 +287,17 @@ MemoryUsage SimOS::GetMemory()
  */
 FileReadRequest SimOS::GetDisk(int diskNumber)
 {
+    if (diskNumber > diskQueues_.size() - 1)
+    {
+        throw std::logic_error("Requested disk out of range.");
+    }
+
     FileReadRequest idle(0, "");
-    
+
     if (diskQueues_[diskNumber].size() != 0)
     {
-        return diskQueues_[diskNumber].front();
+        FileReadRequest &request = diskQueues_[diskNumber].front();
+        return request;
     }
     else
     {
@@ -279,7 +311,12 @@ FileReadRequest SimOS::GetDisk(int diskNumber)
  */
 std::deque<FileReadRequest> SimOS::GetDiskQueue(int diskNumber)
 {
-    return diskQueues_[0];
+    if (diskNumber > diskQueues_.size() - 1)
+    {
+        throw std::logic_error("Requested disk out of range.");
+    }
+
+    return diskQueues_[diskNumber];
 }
 
 /**
@@ -291,12 +328,55 @@ void SimOS::releaseMemory(int pid)
 
 void SimOS::cascadingTerminate(int pid)
 {
-    Process &process = processes_[pid];
+    std::unordered_set<int> terminated; // Set to store terminated process PIDs
 
-    // Recursively terminate all children of the current process
-    for (int childPID : process.childrenPIDs)
+    // Lambda function for the recursive termination of child processes
+    auto terminateChildren = [&](auto &terminateChildrenRef, int parentPID) -> void
     {
-        cascadingTerminate(childPID);
-        processes_.erase(childPID);
+        Process &parentProcess = processes_[parentPID];
+        for (int childPID : parentProcess.childrenPIDs)
+        {
+            if (processes_[childPID].childrenPIDs.size() > 0) // check if child has children
+            {
+                terminateChildrenRef(terminateChildrenRef, childPID);
+            }
+            terminated.insert(childPID); // Store the child PID in the terminated vector
+            processes_.erase(childPID);
+        }
+    };
+
+    // Call the lambda function with the initial process's PID
+    terminateChildren(terminateChildren, pid);
+
+    /**
+     * Remove terminated processes and requests from ready queue and disk queues
+    */
+
+
+    auto isTerminated = [&](int x)
+    { return terminated.find(x) != terminated.end(); };
+
+    if (!readyQueue_.empty()) // if the ready queue isn't empty
+    {
+        // Move terminated processes to the beginning of the ready queue
+        auto newEnd = std::remove_if(readyQueue_.begin(), readyQueue_.end(), isTerminated);
+
+        // Erase the terminated processes from the ready queue
+        readyQueue_.erase(newEnd, readyQueue_.end());
+    }
+
+    auto isTerminatedRequest = [&](const FileReadRequest &request)
+    {
+        return terminated.find(request.PID) != terminated.end();
+    };
+
+    // Delete requests from disk queue
+    for (auto &disk : diskQueues_)
+    {
+        // Move terminated processes requests to the beginning of the disk queue
+        auto newEnd = std::remove_if(disk.second.begin(), disk.second.end(), isTerminatedRequest);
+
+        // Erase the terminated processes requests from the disk queue
+        disk.second.erase(newEnd, disk.second.end());
     }
 }

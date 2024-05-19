@@ -30,10 +30,7 @@ constexpr int NO_PROCESS{0};
 class SimOS
 {
 private:
-    int numberOfDisks_;
-    unsigned long long amountOfRAM_;
-    unsigned int pageSize_;
-    int nextPID_;
+    int nextPID_ = 1;
     int runningProcess_ = NO_PROCESS;
     std::deque<int> readyQueue_;
     std::unordered_map<int, Process> processes_;
