@@ -1,50 +1,31 @@
+
+// Raed Abuzaid
+
 #ifndef SIM_OS_H_
 #define SIM_OS_H_
 
 #include <deque>
-#include <string>
+#include <iostream>
 #include <unordered_map>
 #include <vector>
-#include "Process.hpp"
-
-struct FileReadRequest
-{
-    int PID{0};
-    std::string fileName{""};
-
-    FileReadRequest();
-    FileReadRequest(int pid, std::string file = "") : PID(pid), fileName(file) {}
-};
-
-struct MemoryItem
-{
-    unsigned long long pageNumber;
-    unsigned long long frameNumber;
-    int PID; // PID of the process using this frame of memory
-};
-
-using MemoryUsage = std::vector<MemoryItem>;
-
-constexpr int NO_PROCESS{0};
+#include <string>
+#include "ProcessManager.hpp"
+#include "DiskManager.hpp"
+#include "MemoryManager.hpp"
+#include "CPU.hpp"
 
 class SimOS
 {
 private:
-    int nextPID_ = 1;
-    int runningProcess_ = NO_PROCESS;
-    std::deque<int> readyQueue_;
-    std::unordered_map<int, Process> processes_;
-    std::unordered_map<int, std::deque<FileReadRequest>> diskQueues_;
-    std::unordered_map<int, FileReadRequest> diskStatus_;
-    MemoryUsage memory_;
-
-    void releaseMemory(int pid);
-    void cascadingTerminate(int pid);
+    ProcessManager processManager_;
+    DiskManager diskManager_;
+    MemoryManager memoryManager_;
+    CPU cpu_;
 
 public:
     /**
      * Creates a SimOS Object.
-     * 
+     *
      * @param numberOfDisks : number of hard disks in the simulated computer.
      * @param amountOfRAM : amount of memory
      * @param pageSize : page size
@@ -89,7 +70,7 @@ public:
     /**
      * Currently running process requests to read the specified file from the disk with a given number.
      * The process issuing disk reading requests immediately stops using the CPU, even if the ready-queue is empty.
-     * 
+     *
      * @param diskNumber : the number of the disk to read from.
      * @param fileName : the name of the file to read.
      */
@@ -98,7 +79,7 @@ public:
     /**
      * A disk with a specified number reports that a single job is completed.
      * The served process should return to the ready-queue.
-     * 
+     *
      * @param diskNumber : the number of the disk that completed a job.
      */
     void DiskJobCompleted(int diskNumber);
@@ -107,7 +88,7 @@ public:
      * Currently running process wants to access the specified logical memory address.
      * System makes sure the corresponding page is loaded in the RAM.
      * If the corresponding page is already in the RAM, its “recently used” information is updated.
-     * 
+     *
      * @param address : the logical memory address to access.
      */
     void AccessMemoryAddress(unsigned long long address);
