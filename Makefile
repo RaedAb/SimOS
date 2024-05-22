@@ -11,7 +11,7 @@ INCLUDEDIR = include
 TESTDIR = test_driver
 
 # Source files
-SRCS = $(wildcard $(SRCDIR)/*.cpp) $(wildcard $(TESTDIR)/incomplete_test.cpp)
+SRCS = $(wildcard $(SRCDIR)/*.cpp) $(wildcard $(TESTDIR)/main.cpp)
 
 # Object files
 OBJS = $(patsubst $(SRCDIR)/%.cpp,$(BUILDDIR)/%.o,$(filter $(SRCDIR)/%.cpp,$(SRCS))) \
